@@ -3,6 +3,7 @@ from pyrogram import Client
 from pyrogram import filters, enums
 from pyrogram.types import InlineKeyboardMarkup,InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
+from pymongo import MongoClient
 import bypasser
 import os
 import ddl
@@ -14,17 +15,36 @@ import re
 
 
 # bot
-bot_token = os.environ.get("TOKEN", "5772414951:AAHaniP9K1oZRG0IVDz98nN_mGxkMWJJbNc")
+bot_token = os.environ.get("TOKEN", "6137653641:AAER1Plh0GFXfbJaVaQeXv9NOnVDaybiDRE")
 api_hash = os.environ.get("HASH", "01a4118f7aec3b2caece77a057fdd197") 
 api_id = os.environ.get("ID", "19491592")
-OWNER_ID = os.environ.get("OWNER_ID", "5175000602")
+OWNER_ID = os.environ.get("OWNER_ID", "1458192575")
 ADMIN_LIST = [int(ch) for ch in (os.environ.get("ADMIN_LIST", f"{OWNER_ID}")).split()]
-OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "Rushidhar1999")
-PERMANENT_GROUP = os.environ.get("PERMANENT_GROUP", "-1001811511054")
+OWNER_USERNAME = os.environ.get("OWNER_USERNAME", "AnshumanPM_2006")
+PERMANENT_GROUP = os.environ.get("PERMANENT_GROUP", "-1001602634418")
 GROUP_ID = [int(ch) for ch in (os.environ.get("GROUP_ID", f"{PERMANENT_GROUP}")).split()]
-UPDATES_CHANNEL = str(os.environ.get("UPDATES_CHANNEL", "USE_FULL_BOTZ"))
+UPDATES_CHANNEL = str(os.environ.get("UPDATES_CHANNEL", "AnshBotZone"))
+db_url = os.environ.get("DATABASE_URL", "mongodb+srv://ansh:ansh@cluster0.dkgfmpo.mongodb.net/?retryWrites=true&w=majority")
+
 app = Client("my_bot",api_id=api_id, api_hash=api_hash,bot_token=bot_token)  
 
+# db setup
+m_client = MongoClient(db_url)
+db = m_client['bypass']
+collection = db['users']
+
+if collection.find_one({"role":"admin"}):
+    pass
+else:
+    document = {"role":"admin","value":ADMIN_LIST}
+    collection.insert_one(document)
+
+if collection.find_one({"role":"auth_chat"}):
+    pass
+else:
+    document = {"role":"auth_chat","value":GROUP_ID}
+    collection.insert_one(document)
+        
 # handle ineex
 def handleIndex(ele,message,msg):
     result = bypasser.scrapeIndex(ele)
@@ -76,6 +96,8 @@ def loopthread(message):
 # start command
 @app.on_message(filters.command(["start"]))
 async def send_start(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if str(message.chat.id).startswith("-100") and message.chat.id not in GROUP_ID:
         return
     elif message.chat.id not in GROUP_ID:
@@ -117,6 +139,8 @@ async def send_start(client: pyrogram.client.Client, message: pyrogram.types.mes
 # help command
 @app.on_message(filters.command(["help"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if str(message.chat.id).startswith("-100") and message.chat.id not in GROUP_ID:
         return
     elif message.chat.id not in GROUP_ID:
@@ -154,6 +178,10 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
 
 @app.on_message(filters.command(["authorize"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"admin"})
+    ADMIN_LIST = result["value"]
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if message.chat.id in ADMIN_LIST or message.from_user.id in ADMIN_LIST :
         try :
             msg = int(message.text.split()[-1])
@@ -164,12 +192,17 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
             await app.send_message(message.chat.id, f"Already Added", reply_to_message_id=message.id, disable_web_page_preview=True)
         else :
             GROUP_ID.append(msg)
-            await app.send_message(message.chat.id, f"Authorized Temporarily!", reply_to_message_id=message.id, disable_web_page_preview=True)
+            collection.update_one({"role":"auth_chat"}, {"$set": {"value":GROUP_ID}}, upsert=True)
+            await app.send_message(message.chat.id, f"Authorized Sucessfully!", reply_to_message_id=message.id, disable_web_page_preview=True)
     else:
         await app.send_message(message.chat.id, f"This Command Is Only For Admins", reply_to_message_id=message.id, disable_web_page_preview=True)
 
 @app.on_message(filters.command(["unauthorize"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"admin"})
+    ADMIN_LIST = result["value"]
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if message.chat.id in ADMIN_LIST or message.from_user.id in ADMIN_LIST :
         try :
             msg = int(message.text.split()[-1])
@@ -183,12 +216,15 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
                 await app.send_message(message.chat.id, f"Even Owner Can't Remove This {msg} Chat 😂😂", reply_to_message_id=message.id, disable_web_page_preview=True)
                 return
             GROUP_ID.remove(msg)
+            collection.update_one({"role":"auth_chat"}, {"$set": {"value":GROUP_ID}}, upsert=True)
             await app.send_message(message.chat.id, f"Unauthorized!", reply_to_message_id=message.id, disable_web_page_preview=True)
     else:
         await app.send_message(message.chat.id, f"This Command Is Only For Admins", reply_to_message_id=message.id, disable_web_page_preview=True)
 
 @app.on_message(filters.command(["addsudo"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"admin"})
+    ADMIN_LIST = result["value"]
     if message.chat.id == int(OWNER_ID) or message.from_user.id == int(OWNER_ID) :
         try :
             msg = int(message.text.split()[-1])
@@ -199,12 +235,15 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
             await app.send_message(message.chat.id, f"Already Admin", reply_to_message_id=message.id, disable_web_page_preview=True)
         else :
             ADMIN_LIST.append(msg)
-            await app.send_message(message.chat.id, f"Promoted As Admin Temporarily", reply_to_message_id=message.id, disable_web_page_preview=True)
+            collection.update_one({"role":"admin"}, {"$set": {"value":ADMIN_LIST}}, upsert=True)
+            await app.send_message(message.chat.id, f"Promoted As Admin", reply_to_message_id=message.id, disable_web_page_preview=True)
     else:
         await app.send_message(message.chat.id, f"This Command Is Only For Owner", reply_to_message_id=message.id, disable_web_page_preview=True)
         
 @app.on_message(filters.command(["remsudo"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"admin"})
+    ADMIN_LIST = result["value"]
     if message.chat.id == int(OWNER_ID) or message.from_user.id == int(OWNER_ID) :
         try :
             msg = int(message.text.split()[-1])
@@ -221,12 +260,17 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
                 await app.send_message(message.chat.id, f"Even Owner Can't Remove Himself 😂😂", reply_to_message_id=message.id, disable_web_page_preview=True)
                 return
             ADMIN_LIST.remove(msg)
+            collection.update_one({"role":"admin"}, {"$set": {"value":ADMIN_LIST}}, upsert=True)
             await app.send_message(message.chat.id, f"Demoted!", reply_to_message_id=message.id, disable_web_page_preview=True)
     else:
         await app.send_message(message.chat.id, f"This Command Is Only For Owner", reply_to_message_id=message.id, disable_web_page_preview=True)
         
 @app.on_message(filters.command(["users"]))
 async def send_help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"admin"})
+    ADMIN_LIST = result["value"]
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if message.chat.id in ADMIN_LIST or message.from_user.id in ADMIN_LIST :
         lol = "List Of Authorized Chats\n\n"
         for i in GROUP_ID:
@@ -241,6 +285,8 @@ async def send_help(client: pyrogram.client.Client, message: pyrogram.types.mess
 # links
 @app.on_message(filters.text)
 async def receive(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if str(message.chat.id).startswith("-100") and message.chat.id not in GROUP_ID:
         return
     elif message.chat.id not in GROUP_ID:
@@ -293,6 +339,8 @@ def docthread(message):
 
 @app.on_message(filters.document)
 async def docfile(client: pyrogram.client.Client, message: pyrogram.types.messages_and_media.message.Message):
+    result = collection.find_one({"role":"auth_chat"})
+    GROUP_ID = result["value"]
     if str(message.chat.id).startswith("-100") and message.chat.id not in GROUP_ID:
         return
     elif message.chat.id not in GROUP_ID:

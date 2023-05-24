@@ -3,6 +3,7 @@ cloudscraper
 bs4 
 python-dotenv
 pyrogram==2.0.66
+pymongo
 tgcrypto
 lxml
 lk21
